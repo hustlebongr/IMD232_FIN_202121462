@@ -1,187 +1,321 @@
-class gol {
-  constructor() {
-    this.cells = [];
-    this.rowCount = 50;
-    this.colCount = 50;
+let pandas = [];
+let overAllTexture;
+let shakingMagnitude = 5; // 판다가 떨릴 강도
 
-    // 셀 생성 및 배치
-    for (let row = 0; row < this.rowCount; row++) {
-      for (let col = 0; col < this.colCount; col++) {
-        const x = (width / this.colCount) * col;
-        const y = (height / this.rowCount) * row;
-        const newCell = new golCell(
-          x,
-          y,
-          width / this.colCount,
-          height / this.rowCount
-        );
-        this.cells.push(newCell);
-      }
-    }
+class Panda {
+  constructor(args) {
+    let def = {
+      p: createVector(width / 2, height / 2),
+      randomId: random(500),
+      size: createVector(random(120, 150), random(90, 120)),
+      colors: this.generatePandaColors(),
+      eyeSizes: createVector(random(20, 30), random(20, 30)),
+      ang: random(-0.1, 0.1),
+      earSize: createVector(random(30, 50), random(30, 50)),
+      numEars: 3,
+      pupilSize: createVector(8, 8),
+      eyePatchSize: createVector(10, 10), // 더 어두운 회색 아이패치
+      whiteEyeSize: createVector(14, 14),
+      mouthSize: createVector(30, 10),
+      mouthType: floor(random(3)), // 0, 1, 2 중 하나의 입 모양을 랜덤 선택
+      v: createVector(0, 0), // 속도 벡터
+    };
+    Object.assign(def, args);
+    Object.assign(this, def);
 
-    // 이웃 셀 설정
-    for (let row = 0; row < this.rowCount; row++) {
-      for (let col = 0; col < this.colCount; col++) {
-        const neighborsIndices = [
-          this.getIndex(row - 1, col - 1),
-          this.getIndex(row - 1, col),
-          this.getIndex(row - 1, col + 1),
-          this.getIndex(row, col + 1),
-          this.getIndex(row + 1, col + 1),
-          this.getIndex(row + 1, col),
-          this.getIndex(row + 1, col - 1),
-          this.getIndex(row, col - 1),
-        ];
-
-        // 가장자리 처리
-        if (col === 0) {
-          neighborsIndices[0] = -1;
-          neighborsIndices[6] = -1;
-          neighborsIndices[7] = -1;
-        } else if (col === this.colCount - 1) {
-          neighborsIndices[2] = -1;
-          neighborsIndices[3] = -1;
-          neighborsIndices[4] = -1;
-        }
-
-        if (row === 0) {
-          neighborsIndices[0] = -1;
-          neighborsIndices[1] = -1;
-          neighborsIndices[2] = -1;
-        } else if (row === this.rowCount - 1) {
-          neighborsIndices[4] = -1;
-          neighborsIndices[5] = -1;
-          neighborsIndices[6] = -1;
-        }
-
-        const neighbors = [];
-        neighborsIndices.forEach((eachIndex) => {
-          neighbors.push(eachIndex >= 0 ? this.cells[eachIndex] : null);
-        });
-
-        const index = this.getIndex(row, col);
-        this.cells[index].setNeighbors(neighbors);
-      }
-    }
-
-    // 초기 상태 무작위 설정
-    randomSeed(1);
-    this.cells.forEach((each) => {
-      const randomState = floor(random(3)); // 0: 바위, 1: 보, 2: 가위
-      each.state = randomState;
-    });
+    // 새로운 속성 추가
+    this.eyePosLeft = createVector(-15, -5); // 아이패치 위에 위치
+    this.eyePosRight = createVector(15, -5); // 아이패치 위에 위치
+    this.whiteEyePosLeft = createVector(-15, -5); // 하얀색 눈알 위치
+    this.whiteEyePosRight = createVector(15, -5); // 하얀색 눈알 위치
   }
 
-  // 행렬 인덱스 반환
-  getIndex(row, col) {
-    return row * this.colCount + col;
+  generatePandaColors() {
+    // 흰색 얼굴, 까만 귀, 회색 계열의 랜덤한 색상 생성
+    let faceColor = color(random(200, 255));
+    let earColor = color(random(30, 50));
+    let eyePatchColor = color(random(40, 70));
+
+    return [
+      faceColor,
+      earColor,
+      eyePatchColor,
+      color(255),
+      color(0),
+      color(random(150, 200)),
+      color(random(150, 200)),
+    ];
   }
 
-  // 그리기 함수
-  draw() {
-    background('lightsteelblue');
-
-    // 다음 상태 계산
-    this.cells.forEach((each) => {
-      each.calculateNextState();
-    });
-
-    // 상태 업데이트
-    this.cells.forEach((each) => {
-      each.update();
-    });
-
-    // 화면에 표시
-    this.cells.forEach((each) => {
-      each.display(mouseX, mouseY);
-    });
-  }
-}
-
-class golCell {
-  constructor(x, y, w, h, isClickable = true) {
-    // 생성자
-    this.x = x;
-    this.y = y;
-    this.w = w;
-    this.h = h;
-    this.isClickable = isClickable;
-    this.state = 0; // 0: 바위, 1: 보, 2: 가위
-    this.nextState = this.state;
-    this.neighbors = [];
-  }
-
-  // 이웃 셀 설정
-  setNeighbors(neighbors) {
-    this.neighbors = neighbors;
-  }
-
-  // 다음 상태 계산
-  calculateNextState() {
-    const winningStates = [2, 0, 1]; // 바위는 가위 이김, 가위는 보 이김, 보는 바위 이김
-    const winningNeighbors = this.neighbors.filter(
-      (eachNeighbor) =>
-        eachNeighbor && winningStates[eachNeighbor.state] === this.state
+  shake() {
+    const shakingAmount = map(
+      dist(this.p.x, this.p.y, mouseX, mouseY),
+      0,
+      width,
+      0,
+      shakingMagnitude
     );
-
-    // 이기는 이웃이 2개 이하이면 현재 상태 유지, 그 이상이면 첫 번째 이웃의 상태로 변경
-    if (winningNeighbors.length <= 2) {
-      this.nextState = this.state;
-    } else {
-      const winningNeighbor = winningNeighbors[0];
-      this.nextState = winningNeighbor.state;
-    }
+    this.p.x += random(-shakingAmount, shakingAmount);
+    this.p.y += random(-shakingAmount, shakingAmount);
   }
 
-  // 상태 업데이트
   update() {
-    this.state = this.nextState;
-  }
+    // 판다의 위치를 업데이트하고 떨림 효과를 적용합니다.
+    this.p.add(this.v);
+    this.shake();
 
-  // 마우스 호버 여부 체크
-  isHover(mx, my) {
-    return (
-      this.x < mx && this.x + this.w > mx && this.y < my && this.y + this.h > my
+    this.eyePosLeft.x = lerp(
+      this.eyePosLeft.x,
+      -15 + map(mouseX, 0, width, -5, 5),
+      0.1
+    );
+    this.eyePosLeft.y = lerp(
+      this.eyePosLeft.y,
+      -5 + map(mouseY, 0, height, -5, 5),
+      0.1
+    );
+
+    this.eyePosRight.x = lerp(
+      this.eyePosRight.x,
+      15 + map(mouseX, 0, width, -5, 5),
+      0.1
+    );
+    this.eyePosRight.y = lerp(
+      this.eyePosRight.y,
+      -5 + map(mouseY, 0, height, -5, 5),
+      0.1
+    );
+
+    this.whiteEyePosLeft.x = lerp(
+      this.whiteEyePosLeft.x,
+      -15 + map(mouseX, 0, width, -3, 3),
+      0.1
+    );
+    this.whiteEyePosLeft.y = lerp(
+      this.whiteEyePosLeft.y,
+      -5 + map(mouseY, 0, height, -3, 3),
+      0.1
+    );
+
+    this.whiteEyePosRight.x = lerp(
+      this.whiteEyePosRight.x,
+      15 + map(mouseX, 0, width, -3, 3),
+      0.1
+    );
+    this.whiteEyePosRight.y = lerp(
+      this.whiteEyePosRight.y,
+      -5 + map(mouseY, 0, height, -3, 3),
+      0.1
     );
   }
 
-  // 상태 토글
-  toggleState(mx, my) {
-    if (!this.isClickable) return false;
-    if (!this.isHover(mx, my)) return false;
-    this.state = (this.state + 1) % 3; // 바위, 보, 가위 순환
-    return true;
-  }
-
-  // 화면에 표시
-  display(mx, my) {
+  draw() {
     push();
-    translate(this.x, this.y);
-    stroke(this.isHover(mx, my) ? 'red' : 'black');
-
-    // 바위, 보, 가위 색상 변경
-    fill(
-      this.state === 0
-        ? color('#8B4513') // 바위 (갈색)
-        : this.state === 1
-        ? color('#228B22') // 보 (녹색)
-        : color('#4682B4') // 가위 (청색)
+    translate(this.p.x, this.p.y);
+    scale(0.95);
+    rotate(
+      this.ang +
+        sin(
+          this.randomId + mouseX / 100 + frameCount / 50 + this.p.x + this.p.y
+        ) /
+          4
     );
 
-    rect(0, 0, this.w, this.h);
+    rectMode(CENTER);
+    ellipseMode(CENTER);
+    noStroke();
+
+    // Draw body (흰색 얼굴)
+    fill(this.colors[0]);
+    ellipse(0, 0, this.size.x, this.size.y);
+
+    // Draw eye patches (더 어두운 회색 아이패치)
+    fill(this.colors[2]); // 어두운 회색
+    ellipse(
+      -15,
+      -5,
+      this.eyeSizes.x + this.eyePatchSize.x,
+      this.eyeSizes.y + this.eyePatchSize.y
+    );
+    ellipse(
+      15,
+      -5,
+      this.eyeSizes.x + this.eyePatchSize.x,
+      this.eyeSizes.y + this.eyePatchSize.y
+    );
+
+    // Draw eyes (하얀색 눈알)
+    fill(this.colors[3]);
+    ellipse(
+      this.whiteEyePosLeft.x,
+      this.whiteEyePosLeft.y,
+      this.whiteEyeSize.x
+    );
+    ellipse(
+      this.whiteEyePosRight.x,
+      this.whiteEyePosRight.y,
+      this.whiteEyeSize.x
+    );
+
+    // Draw eye pupils (검정색 눈동자)
+    fill(this.colors[4]);
+    ellipse(
+      this.eyePosLeft.x,
+      this.eyePosLeft.y,
+      this.pupilSize.x,
+      this.pupilSize.y
+    );
+    ellipse(
+      this.eyePosRight.x,
+      this.eyePosRight.y,
+      this.pupilSize.x,
+      this.pupilSize.y
+    );
+
+    // Draw mouth
+    fill(this.colors[5]);
+    this.drawMouth();
+
+    // Draw ears (까만 귀)
+    fill(this.colors[1]);
+    for (let i = 0; i < this.numEars; i++) {
+      if (i !== 1) {
+        let earX = map(
+          i,
+          0,
+          this.numEars - 1,
+          -this.size.x / 2,
+          this.size.x / 2
+        );
+        ellipse(earX, -this.size.y / 2, this.earSize.x, this.earSize.y);
+      }
+    }
+
+    // Draw nose
+    fill(this.colors[2]);
+    ellipse(0, this.size.y / 8, 15, 15);
+
     pop();
   }
+
+  drawMouth() {
+    // 입 모양 그리기
+    switch (this.mouthType) {
+      case 0:
+        // 삼각형 모양
+        beginShape();
+        vertex(-this.mouthSize.x / 2, this.size.y / 4);
+        vertex(0, this.size.y / 4 + this.mouthSize.y);
+        vertex(this.mouthSize.x / 2, this.size.y / 4);
+        endShape(CLOSE);
+        break;
+      case 1:
+        // 원 모양
+        ellipse(
+          0,
+          this.size.y / 4 + this.mouthSize.y / 2,
+          this.mouthSize.x,
+          this.mouthSize.y
+        );
+        break;
+      case 2:
+        // 눈물 모양
+        beginShape();
+        vertex(-this.mouthSize.x / 2, this.size.y / 4);
+        bezierVertex(
+          -this.mouthSize.x / 4,
+          this.size.y / 4 - this.mouthSize.y / 2,
+          this.mouthSize.x / 4,
+          this.size.y / 4 - this.mouthSize.y / 2,
+          this.mouthSize.x / 2,
+          this.size.y / 4
+        );
+        endShape();
+        break;
+      default:
+        break;
+    }
+  }
 }
 
-let golGame;
+function addPanda(x, y) {
+  pandas.push(new Panda({ p: createVector(x, y) }));
+}
+
+function updatePandaPositions() {
+  for (let i = 0; i < pandas.length; i++) {
+    let x = map(i % 4, 0, 3, width / 8, width - width / 8);
+    let y = map(floor(i / 4), 0, 3, height / 8, height - height / 8);
+    pandas[i].p.set(x, y);
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  updatePandaPositions();
+
+  // 창 크기가 변경되면 텍스처도 다시 생성합니다.
+  overAllTexture = createGraphics(width, height);
+  overAllTexture.loadPixels();
+  for (let i = 0; i < width + 50; i++) {
+    for (let o = 0; o < height + 50; o++) {
+      overAllTexture.set(
+        i,
+        o,
+        color(100, noise(i / 3, o / 3, (i * o) / 50) * random([0, 50, 100]))
+      );
+    }
+  }
+  overAllTexture.updatePixels();
+}
+
 function setup() {
-  setCanvasContainer('canvas', 1, 1, true);
-  golGame = new gol();
+  createCanvas(windowWidth, windowHeight);
+  overAllTexture = createGraphics(width, height);
+  overAllTexture.loadPixels();
+  for (let i = 0; i < width + 50; i++) {
+    for (let o = 0; o < height + 50; o++) {
+      overAllTexture.set(
+        i,
+        o,
+        color(100, noise(i / 3, o / 3, (i * o) / 50) * random([0, 50, 100]))
+      );
+    }
+  }
+  overAllTexture.updatePixels();
+
+  for (let x = width / 8; x < width; x += width / 4) {
+    for (let y = height / 8; y < height; y += height / 4) {
+      addPanda(x, y);
+    }
+  }
 }
+
 function draw() {
-  golGame.draw();
+  fill(255);
+  rect(0, 0, width, height);
+  pandas.forEach((panda) => {
+    panda.draw();
+  });
+
+  push();
+  blendMode(MULTIPLY);
+  image(overAllTexture, 0, 0);
+  pop();
 }
-function mouseClicked() {
-  for (let idx = 0; idx < golGame.cells.length; idx++)
-    if (golGame.cells[idx].toggleState(mouseX, mouseY)) break;
+
+function mouseMoved() {
+  pandas.forEach((panda) => {
+    panda.update();
+  });
+}
+
+function mousePressed() {
+  addPanda(mouseX, mouseY);
+}
+
+function mouseReleased() {
+  pandas.forEach((panda) => {
+    panda.v = createVector(0, 0);
+  });
 }
